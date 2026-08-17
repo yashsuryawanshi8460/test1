@@ -45,10 +45,12 @@
         <button id="topCopyBtn" class="mini-btn" title="Copy" aria-label="Copy top text">📋</button>
         <button id="flipToggle" class="mini-btn" title="Flip for face-to-face" aria-label="Flip for face-to-face">🔄</button>
       </div>
-      <p id="topText" class="transcript-text placeholder">Tap the mic and speak…</p>
-      <button id="topMicBtn" class="mic-btn" aria-label="Listen to top speaker">
-        <span class="mic-icon">🎤</span>
+      <p id="topText" class="transcript-text placeholder">Tap "Speak Now" and talk…</p>
+      <button id="topMicBtn" class="mic-btn" aria-label="Speak now — top">
+        <span class="mic-icon" id="topMicIcon">🎤</span>
+        <span class="mic-label" id="topMicLabel">Speak Now</span>
       </button>
+      <p id="topMicStatus" class="mic-status">Tap to talk</p>
     </div>
 
     <div class="split-divider">
@@ -61,10 +63,12 @@
         <button id="bottomReplayBtn" class="mini-btn" title="Replay" aria-label="Replay bottom text">🔊</button>
         <button id="bottomCopyBtn" class="mini-btn" title="Copy" aria-label="Copy bottom text">📋</button>
       </div>
-      <p id="bottomText" class="transcript-text placeholder">Tap the mic and speak…</p>
-      <button id="bottomMicBtn" class="mic-btn" aria-label="Listen to bottom speaker">
-        <span class="mic-icon">🎤</span>
+      <p id="bottomText" class="transcript-text placeholder">Tap "Speak Now" and talk…</p>
+      <button id="bottomMicBtn" class="mic-btn" aria-label="Speak now — bottom">
+        <span class="mic-icon" id="bottomMicIcon">🎤</span>
+        <span class="mic-label" id="bottomMicLabel">Speak Now</span>
       </button>
+      <p id="bottomMicStatus" class="mic-status">Tap to talk</p>
     </div>
 
   </section>
@@ -114,8 +118,8 @@
   </label>
 
   <label class="switch-row">
-    <span>Keep microphone listening</span>
-    <input type="checkbox" id="autoRestartToggle" checked />
+    <span>Keep listening for multiple sentences (hands-free)</span>
+    <input type="checkbox" id="autoRestartToggle" />
   </label>
 
   <div class="field-row">

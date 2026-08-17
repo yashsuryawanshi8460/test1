@@ -32,7 +32,7 @@ const DEFAULTS = {
   topLang: "en-US",
   bottomLang: "vi-VN",
   autoSpeak: true,
-  autoRestart: true,
+  autoRestart: false,
   speechRate: 1,
   email: "",
 };
@@ -75,12 +75,19 @@ const banner = $("banner");
 
 const topCard = $("topCard");
 const topMicBtn = $("topMicBtn");
+const topMicIcon = $("topMicIcon");
+const topMicLabel = $("topMicLabel");
+const topMicStatus = $("topMicStatus");
 const topText = $("topText");
 const topReplayBtn = $("topReplayBtn");
 const topCopyBtn = $("topCopyBtn");
 const flipToggle = $("flipToggle");
 
+const bottomCard = $("bottomCard");
 const bottomMicBtn = $("bottomMicBtn");
+const bottomMicIcon = $("bottomMicIcon");
+const bottomMicLabel = $("bottomMicLabel");
+const bottomMicStatus = $("bottomMicStatus");
 const bottomText = $("bottomText");
 const bottomReplayBtn = $("bottomReplayBtn");
 const bottomCopyBtn = $("bottomCopyBtn");
@@ -169,7 +176,6 @@ const supportsRecognition = !!SpeechRecognitionCtor;
 const supportsSynthesis = "speechSynthesis" in window;
 
 let recognition = null;
-let activeButton = null;
 let activeSide = null; // 'top' | 'bottom'
 let manualStop = false;
 
@@ -185,17 +191,43 @@ if (!supportsRecognition) {
 function buildRecognition(speechLang) {
   const rec = new SpeechRecognitionCtor();
   rec.lang = speechLang;
-  rec.continuous = true;
+  // Single utterance per tap: the browser auto-detects when the speaker
+  // pauses and stops listening on its own — no second tap needed to stop.
+  rec.continuous = false;
   rec.interimResults = true;
   rec.maxAlternatives = 1;
   return rec;
 }
 
-function setCardListening(side, listening) {
-  const button = side === "top" ? topMicBtn : bottomMicBtn;
-  const card = side === "top" ? topCard : $("bottomCard");
-  button.classList.toggle("listening", listening);
-  card.classList.toggle("listening", listening);
+// 'idle' | 'listening' | 'translating', per side — drives button label/icon,
+// status text, and whether the button is tappable.
+const sideState = { top: "idle", bottom: "idle" };
+
+function setSideUI(side, state) {
+  sideState[side] = state;
+  const btn = side === "top" ? topMicBtn : bottomMicBtn;
+  const icon = side === "top" ? topMicIcon : bottomMicIcon;
+  const label = side === "top" ? topMicLabel : bottomMicLabel;
+  const status = side === "top" ? topMicStatus : bottomMicStatus;
+  const card = side === "top" ? topCard : bottomCard;
+
+  btn.classList.toggle("listening", state === "listening");
+  card.classList.toggle("listening", state === "listening");
+  btn.disabled = state === "translating";
+
+  if (state === "listening") {
+    icon.textContent = "⏺️";
+    label.textContent = "Listening…";
+    status.textContent = "Speak now — stops automatically when you pause";
+  } else if (state === "translating") {
+    icon.textContent = "⏳";
+    label.textContent = "Translating…";
+    status.textContent = "Translating your sentence…";
+  } else {
+    icon.textContent = "🎤";
+    label.textContent = "Speak Now";
+    status.textContent = "Tap to talk";
+  }
 }
 
 function stopListening() {
@@ -207,12 +239,11 @@ function stopListening() {
       /* already stopped */
     }
   }
-  if (activeSide) setCardListening(activeSide, false);
-  activeButton = null;
+  if (activeSide) setSideUI(activeSide, "idle");
   activeSide = null;
 }
 
-function startListening(side, button, speechLang) {
+function startListening(side, speechLang) {
   if (!supportsRecognition) return;
 
   if (activeSide === side) {
@@ -223,9 +254,8 @@ function startListening(side, button, speechLang) {
   manualStop = false;
 
   recognition = buildRecognition(speechLang);
-  activeButton = button;
   activeSide = side;
-  setCardListening(side, true);
+  setSideUI(side, "listening");
 
   recognition.onresult = (event) => {
     let finalChunk = "";
@@ -242,6 +272,7 @@ function startListening(side, button, speechLang) {
     if (finalChunk.trim()) {
       const text = finalChunk.trim();
       showOwnText(side, text, false);
+      setSideUI(side, "translating");
       handleUtterance(side, text);
     }
   };
@@ -262,19 +293,22 @@ function startListening(side, button, speechLang) {
     if (!manualStop && settings.autoRestart && activeSide === side) {
       try {
         recognition.start();
+        setSideUI(side, "listening");
         return;
       } catch {
-        /* fall through to stopped state */
+        /* fall through to idle state */
       }
     }
-    setCardListening(side, false);
     if (activeSide === side) activeSide = null;
+    // Don't clobber a still-in-flight translation's UI state.
+    if (sideState[side] !== "translating") setSideUI(side, "idle");
   };
 
   try {
     recognition.start();
   } catch (err) {
     showBanner("Could not start microphone: " + err.message);
+    setSideUI(side, "idle");
   }
 }
 
@@ -285,8 +319,8 @@ function showOwnText(side, text, isInterim) {
   el.style.opacity = isInterim ? 0.6 : 1;
 }
 
-topMicBtn.addEventListener("click", () => startListening("top", topMicBtn, settings.topLang));
-bottomMicBtn.addEventListener("click", () => startListening("bottom", bottomMicBtn, settings.bottomLang));
+topMicBtn.addEventListener("click", () => startListening("top", settings.topLang));
+bottomMicBtn.addEventListener("click", () => startListening("bottom", settings.bottomLang));
 
 // ---------- Translation ----------
 async function translateText(text, fromCode, toCode) {
@@ -333,6 +367,10 @@ async function handleUtterance(side, text) {
   } catch (err) {
     translatedEl.textContent = "Translation failed — try again.";
     showBanner("Translation failed: " + err.message);
+  } finally {
+    // Only reset if nothing else (e.g. hands-free auto-restart) already moved
+    // this side on to a new state while the request was in flight.
+    if (sideState[side] === "translating") setSideUI(side, "idle");
   }
 }
 
