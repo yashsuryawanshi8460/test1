@@ -1,5 +1,10 @@
 // Live Speech Translator — client-side only.
 // Speech-to-text & text-to-speech: Web Speech API. Translation: MyMemory free API.
+//
+// Interface: split-screen conversation view. The top card and bottom card each
+// have their own independent language and mic — whatever one side says is
+// transcribed in its own language and the translation is shown (and spoken)
+// on the other side.
 
 const LANGUAGES = [
   { speech: "en-US", code: "en", name: "English" },
@@ -24,8 +29,8 @@ const langBySpeech = (speech) => LANGUAGES.find((l) => l.speech === speech) || L
 const iso = (speech) => langBySpeech(speech).code;
 
 const DEFAULTS = {
-  sourceLang: "en-US",
-  targetLang: "vi-VN",
+  topLang: "en-US",
+  bottomLang: "vi-VN",
   autoSpeak: true,
   autoRestart: true,
   speechRate: 1,
@@ -37,8 +42,11 @@ let history = loadHistory();
 
 function loadSettings() {
   try {
-    const saved = JSON.parse(localStorage.getItem("lst_settings"));
-    return { ...DEFAULTS, ...(saved || {}) };
+    const saved = JSON.parse(localStorage.getItem("lst_settings")) || {};
+    // migrate from the older single source/target layout, if present
+    if (saved.sourceLang && !saved.topLang) saved.topLang = saved.sourceLang;
+    if (saved.targetLang && !saved.bottomLang) saved.bottomLang = saved.targetLang;
+    return { ...DEFAULTS, ...saved };
   } catch {
     return { ...DEFAULTS };
   }
@@ -59,38 +67,31 @@ function saveHistory() {
 
 // ---------- DOM refs ----------
 const $ = (id) => document.getElementById(id);
-const sourceLangSel = $("sourceLang");
-const targetLangSel = $("targetLang");
+
+const topLangSelect = $("topLangSelect");
+const bottomLangSelect = $("bottomLangSelect");
 const swapLangBtn = $("swapLangBtn");
 const banner = $("banner");
 
-const modeTabs = document.querySelectorAll(".mode-tab");
-const singleMode = $("singleMode");
-const conversationMode = $("conversationMode");
-
-const micBtn = $("micBtn");
-const micStatus = $("micStatus");
-const singleOriginal = $("singleOriginal");
-const singleTranslated = $("singleTranslated");
-const singleSrcLangLabel = $("singleSrcLangLabel");
-const singleTgtLangLabel = $("singleTgtLangLabel");
-const singleReplayBtn = $("singleReplayBtn");
-const singleCopyBtn = $("singleCopyBtn");
-
-const sourceMicBtn = $("sourceMicBtn");
-const targetMicBtn = $("targetMicBtn");
-const convoSourceText = $("convoSourceText");
-const convoTargetText = $("convoTargetText");
-const convoSourceLabel = $("convoSourceLabel");
-const convoTargetLabel = $("convoTargetLabel");
+const topCard = $("topCard");
+const topMicBtn = $("topMicBtn");
+const topText = $("topText");
+const topReplayBtn = $("topReplayBtn");
+const topCopyBtn = $("topCopyBtn");
 const flipToggle = $("flipToggle");
-const targetCard = $("targetCard");
+
+const bottomMicBtn = $("bottomMicBtn");
+const bottomText = $("bottomText");
+const bottomReplayBtn = $("bottomReplayBtn");
+const bottomCopyBtn = $("bottomCopyBtn");
 
 const manualToggle = $("manualToggle");
 const manualBody = $("manualBody");
 const manualChevron = $("manualChevron");
 const manualInput = $("manualInput");
 const manualTranslateBtn = $("manualTranslateBtn");
+const manualSideTop = $("manualSideTop");
+const manualSideBottom = $("manualSideBottom");
 
 const historyList = $("historyList");
 const clearHistoryBtn = $("clearHistoryBtn");
@@ -106,12 +107,11 @@ const speechRateValue = $("speechRateValue");
 const emailField = $("emailField");
 const installBtn = $("installBtn");
 
-let lastTranslatedText = "";
-let lastTranslatedLang = settings.targetLang;
+let manualSide = "bottom";
 
 // ---------- Populate language selects ----------
 function populateLangSelects() {
-  [sourceLangSel, targetLangSel].forEach((sel) => {
+  [topLangSelect, bottomLangSelect].forEach((sel) => {
     sel.innerHTML = "";
     LANGUAGES.forEach((l) => {
       const opt = document.createElement("option");
@@ -120,70 +120,38 @@ function populateLangSelects() {
       sel.appendChild(opt);
     });
   });
-  sourceLangSel.value = settings.sourceLang;
-  targetLangSel.value = settings.targetLang;
-  updateLangLabels();
+  topLangSelect.value = settings.topLang;
+  bottomLangSelect.value = settings.bottomLang;
 }
 
-function updateLangLabels() {
-  singleSrcLangLabel.textContent = `(${langBySpeech(settings.sourceLang).name})`;
-  singleTgtLangLabel.textContent = `(${langBySpeech(settings.targetLang).name})`;
-  convoSourceLabel.textContent = `You — ${langBySpeech(settings.sourceLang).name}`;
-  convoTargetLabel.textContent = `Them — ${langBySpeech(settings.targetLang).name}`;
-}
-
-sourceLangSel.addEventListener("change", () => {
-  settings.sourceLang = sourceLangSel.value;
+topLangSelect.addEventListener("change", () => {
+  settings.topLang = topLangSelect.value;
   saveSettings();
-  updateLangLabels();
 });
-targetLangSel.addEventListener("change", () => {
-  settings.targetLang = targetLangSel.value;
+bottomLangSelect.addEventListener("change", () => {
+  settings.bottomLang = bottomLangSelect.value;
   saveSettings();
-  updateLangLabels();
 });
 swapLangBtn.addEventListener("click", () => {
-  [settings.sourceLang, settings.targetLang] = [settings.targetLang, settings.sourceLang];
-  sourceLangSel.value = settings.sourceLang;
-  targetLangSel.value = settings.targetLang;
+  [settings.topLang, settings.bottomLang] = [settings.bottomLang, settings.topLang];
+  topLangSelect.value = settings.topLang;
+  bottomLangSelect.value = settings.bottomLang;
   saveSettings();
-  updateLangLabels();
 });
 
 document.querySelectorAll(".preset-chip").forEach((chip) => {
   chip.addEventListener("click", () => {
-    settings.sourceLang = chip.dataset.src;
-    settings.targetLang = chip.dataset.tgt;
-    sourceLangSel.value = settings.sourceLang;
-    targetLangSel.value = settings.targetLang;
+    settings.topLang = chip.dataset.top;
+    settings.bottomLang = chip.dataset.bottom;
+    topLangSelect.value = settings.topLang;
+    bottomLangSelect.value = settings.bottomLang;
     saveSettings();
-    updateLangLabels();
     document.querySelectorAll(".preset-chip").forEach((c) => c.classList.remove("active"));
     chip.classList.add("active");
   });
 });
 
-// ---------- Mode tabs ----------
-modeTabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    modeTabs.forEach((t) => {
-      t.classList.remove("active");
-      t.setAttribute("aria-selected", "false");
-    });
-    tab.classList.add("active");
-    tab.setAttribute("aria-selected", "true");
-    stopListening();
-    if (tab.dataset.mode === "single") {
-      singleMode.classList.remove("hidden");
-      conversationMode.classList.add("hidden");
-    } else {
-      singleMode.classList.add("hidden");
-      conversationMode.classList.remove("hidden");
-    }
-  });
-});
-
-flipToggle.addEventListener("click", () => targetCard.classList.toggle("flipped"));
+flipToggle.addEventListener("click", () => topCard.classList.toggle("flipped"));
 
 // ---------- Banner ----------
 let bannerTimeout;
@@ -201,8 +169,8 @@ const supportsRecognition = !!SpeechRecognitionCtor;
 const supportsSynthesis = "speechSynthesis" in window;
 
 let recognition = null;
-let activeButton = null; // which mic button is currently active
-let activeSide = null; // 'single' | 'source' | 'target'
+let activeButton = null;
+let activeSide = null; // 'top' | 'bottom'
 let manualStop = false;
 
 if (!supportsRecognition) {
@@ -210,9 +178,8 @@ if (!supportsRecognition) {
     "Speech recognition isn't supported in this browser. Use Chrome, Edge, or Safari on iOS — or type below.",
     "info"
   );
-  micBtn.disabled = true;
-  sourceMicBtn.disabled = true;
-  targetMicBtn.disabled = true;
+  topMicBtn.disabled = true;
+  bottomMicBtn.disabled = true;
 }
 
 function buildRecognition(speechLang) {
@@ -224,9 +191,11 @@ function buildRecognition(speechLang) {
   return rec;
 }
 
-function setMicUI(button, listening) {
-  if (!button) return;
+function setCardListening(side, listening) {
+  const button = side === "top" ? topMicBtn : bottomMicBtn;
+  const card = side === "top" ? topCard : $("bottomCard");
   button.classList.toggle("listening", listening);
+  card.classList.toggle("listening", listening);
 }
 
 function stopListening() {
@@ -238,8 +207,7 @@ function stopListening() {
       /* already stopped */
     }
   }
-  setMicUI(activeButton, false);
-  micStatus.textContent = "Tap to speak";
+  if (activeSide) setCardListening(activeSide, false);
   activeButton = null;
   activeSide = null;
 }
@@ -257,10 +225,7 @@ function startListening(side, button, speechLang) {
   recognition = buildRecognition(speechLang);
   activeButton = button;
   activeSide = side;
-  setMicUI(button, true);
-  micStatus.textContent = "Listening…";
-
-  let interimBuffer = "";
+  setCardListening(side, true);
 
   recognition.onresult = (event) => {
     let finalChunk = "";
@@ -273,14 +238,11 @@ function startListening(side, button, speechLang) {
         interim += transcript;
       }
     }
-    if (interim) {
-      interimBuffer = interim;
-      showOriginal(side, interimBuffer, true);
-    }
+    if (interim) showOwnText(side, interim, true);
     if (finalChunk.trim()) {
-      interimBuffer = "";
-      showOriginal(side, finalChunk.trim(), false);
-      handleUtterance(side, finalChunk.trim());
+      const text = finalChunk.trim();
+      showOwnText(side, text, false);
+      handleUtterance(side, text);
     }
   };
 
@@ -305,8 +267,7 @@ function startListening(side, button, speechLang) {
         /* fall through to stopped state */
       }
     }
-    setMicUI(button, false);
-    micStatus.textContent = "Tap to speak";
+    setCardListening(side, false);
     if (activeSide === side) activeSide = null;
   };
 
@@ -317,21 +278,15 @@ function startListening(side, button, speechLang) {
   }
 }
 
-function showOriginal(side, text, isInterim) {
-  const target =
-    side === "single" ? singleOriginal : side === "source" ? convoSourceText : convoTargetText;
-  target.textContent = text;
-  target.classList.toggle("placeholder", false);
-  target.style.opacity = isInterim ? 0.6 : 1;
+function showOwnText(side, text, isInterim) {
+  const el = side === "top" ? topText : bottomText;
+  el.textContent = text;
+  el.classList.remove("placeholder");
+  el.style.opacity = isInterim ? 0.6 : 1;
 }
 
-micBtn.addEventListener("click", () => startListening("single", micBtn, settings.sourceLang));
-sourceMicBtn.addEventListener("click", () =>
-  startListening("source", sourceMicBtn, settings.sourceLang)
-);
-targetMicBtn.addEventListener("click", () =>
-  startListening("target", targetMicBtn, settings.targetLang)
-);
+topMicBtn.addEventListener("click", () => startListening("top", topMicBtn, settings.topLang));
+bottomMicBtn.addEventListener("click", () => startListening("bottom", bottomMicBtn, settings.bottomLang));
 
 // ---------- Translation ----------
 async function translateText(text, fromCode, toCode) {
@@ -354,21 +309,18 @@ async function translateText(text, fromCode, toCode) {
 }
 
 async function handleUtterance(side, text) {
-  const fromSpeech = side === "target" ? settings.targetLang : settings.sourceLang;
-  const toSpeech = side === "target" ? settings.sourceLang : settings.targetLang;
-
-  const translatedEl =
-    side === "single" ? singleTranslated : side === "source" ? convoTargetText : convoSourceText;
+  const fromSpeech = side === "top" ? settings.topLang : settings.bottomLang;
+  const toSpeech = side === "top" ? settings.bottomLang : settings.topLang;
+  const otherSide = side === "top" ? "bottom" : "top";
+  const translatedEl = otherSide === "top" ? topText : bottomText;
 
   translatedEl.textContent = "Translating…";
   translatedEl.classList.remove("placeholder");
+  translatedEl.style.opacity = 1;
 
   try {
     const translated = await translateText(text, iso(fromSpeech), iso(toSpeech));
     translatedEl.textContent = translated;
-
-    lastTranslatedText = translated;
-    lastTranslatedLang = toSpeech;
 
     if (settings.autoSpeak) speak(translated, toSpeech);
     addHistoryEntry({
@@ -408,27 +360,41 @@ function speak(text, speechLang) {
   speechSynthesis.speak(utter);
 }
 
-singleReplayBtn.addEventListener("click", () => speak(lastTranslatedText, lastTranslatedLang));
-singleCopyBtn.addEventListener("click", async () => {
-  if (!lastTranslatedText) return;
+topReplayBtn.addEventListener("click", () => speak(topText.textContent, settings.topLang));
+bottomReplayBtn.addEventListener("click", () => speak(bottomText.textContent, settings.bottomLang));
+
+async function copyCardText(el) {
+  const text = el.textContent.trim();
+  if (!text) return;
   try {
-    await navigator.clipboard.writeText(lastTranslatedText);
+    await navigator.clipboard.writeText(text);
     showBanner("Copied to clipboard.", "info");
   } catch {
     showBanner("Could not copy text.");
   }
-});
+}
+topCopyBtn.addEventListener("click", () => copyCardText(topText));
+bottomCopyBtn.addEventListener("click", () => copyCardText(bottomText));
 
 // ---------- Manual fallback ----------
 manualToggle.addEventListener("click", () => {
   manualBody.classList.toggle("hidden");
   manualChevron.textContent = manualBody.classList.contains("hidden") ? "▾" : "▴";
 });
+
+function setManualSide(side) {
+  manualSide = side;
+  manualSideTop.classList.toggle("active", side === "top");
+  manualSideBottom.classList.toggle("active", side === "bottom");
+}
+manualSideTop.addEventListener("click", () => setManualSide("top"));
+manualSideBottom.addEventListener("click", () => setManualSide("bottom"));
+
 manualTranslateBtn.addEventListener("click", () => {
   const text = manualInput.value.trim();
   if (!text) return;
-  showOriginal("single", text, false);
-  handleUtterance("single", text);
+  showOwnText(manualSide, text, false);
+  handleUtterance(manualSide, text);
   manualInput.value = "";
 });
 manualInput.addEventListener("keydown", (e) => {
@@ -525,6 +491,7 @@ function initSettingsUI() {
 populateLangSelects();
 initSettingsUI();
 renderHistory();
+setManualSide("bottom");
 
 // ---------- PWA install prompt ----------
 let deferredInstallPrompt = null;

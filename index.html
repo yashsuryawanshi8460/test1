@@ -26,78 +26,47 @@
 
 <main>
 
-  <section class="lang-bar" aria-label="Language selection">
-    <div class="lang-select">
-      <label for="sourceLang">You speak</label>
-      <select id="sourceLang"></select>
-    </div>
-
-    <button id="swapLangBtn" class="icon-btn swap-btn" title="Swap languages" aria-label="Swap languages">⇄</button>
-
-    <div class="lang-select">
-      <label for="targetLang">They speak</label>
-      <select id="targetLang"></select>
-    </div>
-  </section>
-
   <div class="quick-presets" id="quickPresets">
-    <button class="preset-chip" data-src="en-US" data-tgt="vi-VN">🇬🇧→🇻🇳 English → Vietnamese</button>
-    <button class="preset-chip" data-src="en-US" data-tgt="ko-KR">🇬🇧→🇰🇷 English → Korean</button>
-    <button class="preset-chip" data-src="en-US" data-tgt="zh-CN">🇬🇧→🇨🇳 English → Chinese</button>
-    <button class="preset-chip" data-src="en-US" data-tgt="ru-RU">🇬🇧→🇷🇺 English → Russian</button>
-  </div>
-
-  <div class="mode-tabs" role="tablist">
-    <button class="mode-tab active" data-mode="single" role="tab" aria-selected="true">Single Mic</button>
-    <button class="mode-tab" data-mode="conversation" role="tab" aria-selected="false">Conversation</button>
+    <button class="preset-chip" data-top="en-US" data-bottom="vi-VN">🇬🇧 English ⇄ 🇻🇳 Vietnamese</button>
+    <button class="preset-chip" data-top="en-US" data-bottom="ko-KR">🇬🇧 English ⇄ 🇰🇷 Korean</button>
+    <button class="preset-chip" data-top="en-US" data-bottom="zh-CN">🇬🇧 English ⇄ 🇨🇳 Chinese</button>
+    <button class="preset-chip" data-top="en-US" data-bottom="ru-RU">🇬🇧 English ⇄ 🇷🇺 Russian</button>
   </div>
 
   <div id="banner" class="banner hidden" role="alert"></div>
 
-  <!-- SINGLE MODE -->
-  <section id="singleMode" class="panel">
-    <div class="mic-wrap">
-      <button id="micBtn" class="mic-btn" aria-label="Start listening">
-        <span class="mic-icon">🎤</span>
-      </button>
-      <p id="micStatus" class="mic-status">Tap to speak</p>
-    </div>
+  <!-- SPLIT-SCREEN CONVERSATION VIEW -->
+  <section class="split-screen">
 
-    <div class="transcript-card">
-      <div class="transcript-label">Original <span id="singleSrcLangLabel"></span></div>
-      <p id="singleOriginal" class="transcript-text placeholder">Your speech will appear here…</p>
-    </div>
-
-    <div class="transcript-card translated">
-      <div class="transcript-label">
-        Translation <span id="singleTgtLangLabel"></span>
-        <button id="singleReplayBtn" class="mini-btn" title="Replay translation" aria-label="Replay translation">🔊</button>
-        <button id="singleCopyBtn" class="mini-btn" title="Copy translation" aria-label="Copy translation">📋</button>
-      </div>
-      <p id="singleTranslated" class="transcript-text placeholder">Translation will appear here…</p>
-    </div>
-  </section>
-
-  <!-- CONVERSATION MODE -->
-  <section id="conversationMode" class="panel hidden">
-    <div class="convo-card flipped" id="targetCard">
+    <div class="convo-card flipped" id="topCard">
       <div class="convo-header">
-        <span id="convoTargetLabel">Local language</span>
+        <select id="topLangSelect" class="lang-select-inline" aria-label="Top person's language"></select>
+        <button id="topReplayBtn" class="mini-btn" title="Replay" aria-label="Replay top text">🔊</button>
+        <button id="topCopyBtn" class="mini-btn" title="Copy" aria-label="Copy top text">📋</button>
         <button id="flipToggle" class="mini-btn" title="Flip for face-to-face" aria-label="Flip for face-to-face">🔄</button>
       </div>
-      <p id="convoTargetText" class="transcript-text placeholder">…</p>
-      <button id="targetMicBtn" class="mic-btn small" aria-label="Listen in their language">🎤</button>
+      <p id="topText" class="transcript-text placeholder">Tap the mic and speak…</p>
+      <button id="topMicBtn" class="mic-btn" aria-label="Listen to top speaker">
+        <span class="mic-icon">🎤</span>
+      </button>
     </div>
 
-    <div class="convo-divider">translates to / from</div>
+    <div class="split-divider">
+      <button id="swapLangBtn" class="icon-btn swap-btn" title="Swap languages" aria-label="Swap languages">⇅</button>
+    </div>
 
-    <div class="convo-card">
+    <div class="convo-card" id="bottomCard">
       <div class="convo-header">
-        <span id="convoSourceLabel">Your language</span>
+        <select id="bottomLangSelect" class="lang-select-inline" aria-label="Bottom person's language"></select>
+        <button id="bottomReplayBtn" class="mini-btn" title="Replay" aria-label="Replay bottom text">🔊</button>
+        <button id="bottomCopyBtn" class="mini-btn" title="Copy" aria-label="Copy bottom text">📋</button>
       </div>
-      <p id="convoSourceText" class="transcript-text placeholder">…</p>
-      <button id="sourceMicBtn" class="mic-btn small" aria-label="Listen in your language">🎤</button>
+      <p id="bottomText" class="transcript-text placeholder">Tap the mic and speak…</p>
+      <button id="bottomMicBtn" class="mic-btn" aria-label="Listen to bottom speaker">
+        <span class="mic-icon">🎤</span>
+      </button>
     </div>
+
   </section>
 
   <!-- MANUAL FALLBACK -->
@@ -107,6 +76,10 @@
       <span id="manualChevron">▾</span>
     </div>
     <div id="manualBody" class="manual-body hidden">
+      <div class="manual-side-toggle" role="tablist">
+        <button class="side-chip active" id="manualSideBottom" data-side="bottom">Typing as bottom</button>
+        <button class="side-chip" id="manualSideTop" data-side="top">Typing as top</button>
+      </div>
       <textarea id="manualInput" rows="2" placeholder="Type a phrase to translate…"></textarea>
       <button id="manualTranslateBtn" class="primary-btn">Translate</button>
     </div>

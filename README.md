@@ -11,14 +11,25 @@ in the browser.
 
 ## Features
 
+- **Split-screen conversation view** — the screen is divided into a top half and a
+  bottom half, one per person. Each half has its own mic button, its own language
+  picker, and shows the live transcript of whatever that person says.
+- **Independent language per side** — the top and bottom don't share a single
+  "source/target" pair; each side picks its own language (e.g. top = English,
+  bottom = Vietnamese), and either side can change languages at any time with a
+  swap button (⇅) to flip the pair in one tap.
 - **Live speech-to-text** using the browser's Web Speech API (continuous, streaming).
-- **Automatic translation** via the free [MyMemory Translation API](https://mymemory.translated.net/).
+- **Automatic translation** via the free [MyMemory Translation API](https://mymemory.translated.net/) —
+  when one side speaks, the translation is shown (and spoken aloud) on the other side.
 - **Spoken-aloud translations** using the browser's text-to-speech engine.
-- **Single Mic mode** — you speak, it shows and speaks the translation.
-- **Conversation mode** — two mic buttons (you / them), with a "flip" button that
-  rotates the other person's card 180° so it reads right-side-up when facing them
-  across a table, like at a restaurant or market stall.
-- **Typed fallback** — for noisy streets/markets or browsers without speech recognition.
+- **Face-to-face flip** — the top card is rotated 180° by default so it reads
+  right-side-up to the person sitting across the table (like at a restaurant or
+  market stall); toggle it off with 🔄 if you'd rather not rotate it.
+- **Replay & copy** per side — 🔊 re-speaks and 📋 copies whatever's currently shown
+  on that half of the screen.
+- **Typed fallback** — for noisy streets/markets or browsers without speech recognition,
+  pick which side you're typing for ("Typing as top/bottom") and it translates the
+  same way a spoken utterance would.
 - **Conversation history**, saved locally on your device.
 - **Quick presets** for English → Vietnamese, Korean, Chinese, and Russian (the most
   common languages you'll run into around Phu Quoc), plus 16 languages total.
