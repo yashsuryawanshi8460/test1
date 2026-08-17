@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Live Speech Translator — Phu Quoc Travel Companion</title>
+<meta name="description" content="Real-time speech translation for travelers. Speak, translate, and hear the reply — built for Phu Quoc, Vietnam." />
+<meta name="theme-color" content="#0f9b8e" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icons/favicon.svg" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-icon" aria-hidden="true">🌊</span>
+    <div>
+      <h1>Live Speech Translator</h1>
+      <p class="tagline">Your travel companion for Phú Quốc, Vietnam</p>
+    </div>
+  </div>
+  <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Open settings">⚙️</button>
+</header>
+
+<main>
+
+  <section class="lang-bar" aria-label="Language selection">
+    <div class="lang-select">
+      <label for="sourceLang">You speak</label>
+      <select id="sourceLang"></select>
+    </div>
+
+    <button id="swapLangBtn" class="icon-btn swap-btn" title="Swap languages" aria-label="Swap languages">⇄</button>
+
+    <div class="lang-select">
+      <label for="targetLang">They speak</label>
+      <select id="targetLang"></select>
+    </div>
+  </section>
+
+  <div class="quick-presets" id="quickPresets">
+    <button class="preset-chip" data-src="en-US" data-tgt="vi-VN">🇬🇧→🇻🇳 English → Vietnamese</button>
+    <button class="preset-chip" data-src="en-US" data-tgt="ko-KR">🇬🇧→🇰🇷 English → Korean</button>
+    <button class="preset-chip" data-src="en-US" data-tgt="zh-CN">🇬🇧→🇨🇳 English → Chinese</button>
+    <button class="preset-chip" data-src="en-US" data-tgt="ru-RU">🇬🇧→🇷🇺 English → Russian</button>
+  </div>
+
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active" data-mode="single" role="tab" aria-selected="true">Single Mic</button>
+    <button class="mode-tab" data-mode="conversation" role="tab" aria-selected="false">Conversation</button>
+  </div>
+
+  <div id="banner" class="banner hidden" role="alert"></div>
+
+  <!-- SINGLE MODE -->
+  <section id="singleMode" class="panel">
+    <div class="mic-wrap">
+      <button id="micBtn" class="mic-btn" aria-label="Start listening">
+        <span class="mic-icon">🎤</span>
+      </button>
+      <p id="micStatus" class="mic-status">Tap to speak</p>
+    </div>
+
+    <div class="transcript-card">
+      <div class="transcript-label">Original <span id="singleSrcLangLabel"></span></div>
+      <p id="singleOriginal" class="transcript-text placeholder">Your speech will appear here…</p>
+    </div>
+
+    <div class="transcript-card translated">
+      <div class="transcript-label">
+        Translation <span id="singleTgtLangLabel"></span>
+        <button id="singleReplayBtn" class="mini-btn" title="Replay translation" aria-label="Replay translation">🔊</button>
+        <button id="singleCopyBtn" class="mini-btn" title="Copy translation" aria-label="Copy translation">📋</button>
+      </div>
+      <p id="singleTranslated" class="transcript-text placeholder">Translation will appear here…</p>
+    </div>
+  </section>
+
+  <!-- CONVERSATION MODE -->
+  <section id="conversationMode" class="panel hidden">
+    <div class="convo-card flipped" id="targetCard">
+      <div class="convo-header">
+        <span id="convoTargetLabel">Local language</span>
+        <button id="flipToggle" class="mini-btn" title="Flip for face-to-face" aria-label="Flip for face-to-face">🔄</button>
+      </div>
+      <p id="convoTargetText" class="transcript-text placeholder">…</p>
+      <button id="targetMicBtn" class="mic-btn small" aria-label="Listen in their language">🎤</button>
+    </div>
+
+    <div class="convo-divider">translates to / from</div>
+
+    <div class="convo-card">
+      <div class="convo-header">
+        <span id="convoSourceLabel">Your language</span>
+      </div>
+      <p id="convoSourceText" class="transcript-text placeholder">…</p>
+      <button id="sourceMicBtn" class="mic-btn small" aria-label="Listen in your language">🎤</button>
+    </div>
+  </section>
+
+  <!-- MANUAL FALLBACK -->
+  <section class="manual-card">
+    <div class="manual-header" id="manualToggle">
+      <span>⌨️ Type instead (noisy place or no mic support)</span>
+      <span id="manualChevron">▾</span>
+    </div>
+    <div id="manualBody" class="manual-body hidden">
+      <textarea id="manualInput" rows="2" placeholder="Type a phrase to translate…"></textarea>
+      <button id="manualTranslateBtn" class="primary-btn">Translate</button>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="history-section">
+    <div class="history-header">
+      <h2>History</h2>
+      <button id="clearHistoryBtn" class="text-btn">Clear</button>
+    </div>
+    <ul id="historyList" class="history-list">
+      <li class="history-empty">No translations yet — your conversation log will show up here.</li>
+    </ul>
+  </section>
+
+  <p class="offline-note">📶 Speech recognition and translation need an internet connection. Screen &amp; mic stay on your device.</p>
+
+</main>
+
+<!-- SETTINGS DRAWER -->
+<div id="settingsOverlay" class="overlay hidden"></div>
+<aside id="settingsDrawer" class="drawer hidden" aria-label="Settings">
+  <div class="drawer-header">
+    <h2>Settings</h2>
+    <button id="closeSettingsBtn" class="icon-btn" aria-label="Close settings">✕</button>
+  </div>
+
+  <label class="switch-row">
+    <span>Auto-speak translation</span>
+    <input type="checkbox" id="autoSpeakToggle" checked />
+  </label>
+
+  <label class="switch-row">
+    <span>Keep microphone listening</span>
+    <input type="checkbox" id="autoRestartToggle" checked />
+  </label>
+
+  <div class="field-row">
+    <label for="speechRateRange">Speech speed: <span id="speechRateValue">1.0×</span></label>
+    <input type="range" id="speechRateRange" min="0.5" max="1.5" step="0.1" value="1" />
+  </div>
+
+  <div class="field-row">
+    <label for="emailField">Email for higher translation quota <span class="hint">(optional, MyMemory API)</span></label>
+    <input type="email" id="emailField" placeholder="you@example.com" />
+  </div>
+
+  <button id="installBtn" class="primary-btn hidden">📲 Add to Home Screen</button>
+
+  <p class="settings-note">Works best in Chrome or Edge. On iPhone, use Safari. Requires HTTPS and microphone permission.</p>
+</aside>
+
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "Live Speech Translator",
+  "short_name": "Translator",
+  "description": "Real-time speech translation for travelers — built for Phu Quoc, Vietnam.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f9b8e",
+  "theme_color": "#0f9b8e",
+  "icons": [
+    {
+      "src": "icons/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
