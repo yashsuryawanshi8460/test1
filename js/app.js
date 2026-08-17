@@ -344,11 +344,11 @@ async function translateText(text, fromCode, toCode) {
   const res = await fetch(url);
   if (!res.ok) throw new Error("Translation service unavailable");
   const data = await res.json();
+  if (data && data.responseStatus && Number(data.responseStatus) >= 400) {
+    throw new Error(data.responseDetails || "Translation failed");
+  }
   if (!data || !data.responseData || !data.responseData.translatedText) {
     throw new Error("No translation returned");
-  }
-  if (data.responseStatus && Number(data.responseStatus) >= 400) {
-    throw new Error(data.responseDetails || "Translation failed");
   }
   return data.responseData.translatedText;
 }
